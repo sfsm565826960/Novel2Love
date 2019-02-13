@@ -17,7 +17,7 @@ def import_tag_data(cur, table, nids):
     for item in ret:
         t_nids.append(item[0])
         word_group.append(item[1].split(','))
-        letter_group.append(list(set(list(item[1].replace(',', '')))))  # 用set实现去重
+        letter_group.append(list(item[1].replace(',', '')))
     if len(t_nids) < len(nids):
         lost = list(set(nids).difference(set(t_nids)))
         print '以下', len(lost), '本小说编号未录入数据库：', lost
@@ -65,7 +65,7 @@ def tag_vsm(analysis_nids=[], tag_table='', out_table='', target_nids=None, debu
 
 if __name__ == '__main__':
 
-    # nids = ['100000092', '100000740']
+    target_nids = ['100000092', '100000740']
 
     con = connect_db()
     cur = con.cursor()
@@ -75,14 +75,14 @@ if __name__ == '__main__':
     analysis_nids = [str(nid[0]) for nid in ret]
     cur.close()
     con.close()
-
-    target_nids = ['100089917', '100055607', '100089784', '100060280',
-                   '100087736', '100077651', '100025807', '100084396',
-                   '100000514', '100079016', '100072902', '100070345',
-                   '100003883', '100057499', '100028599', '100000748',
-                   '100061867', '100061338', '100056917', '100011818',
-                   '100049348', '100056938', '100035330', '100045203',
-                   '100042006']
+    #
+    # target_nids = ['100089917', '100055607', '100089784', '100060280',
+    #                '100087736', '100077651', '100025807', '100084396',
+    #                '100000514', '100079016', '100072902', '100070345',
+    #                '100003883', '100057499', '100028599', '100000748',
+    #                '100061867', '100061338', '100056917', '100011818',
+    #                '100049348', '100056938', '100035330', '100045203',
+    #                '100042006']
 
     debug = False
     tag_vsm(analysis_nids, target_nids=target_nids, tag_table='novel_base_tag', out_table='similar_base_tag', debug=debug)

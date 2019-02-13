@@ -8,20 +8,33 @@ from math import sqrt
 from json import dumps
 
 
-def create_vocabulary(tag_group1, tag_group2):
-    return list(set(tag_group1+tag_group2))
+# 合并标签集
+def create_vocabulary(tag_list1, tag_list2):
+    return list(set(tag_list1+tag_list2))
 
 
-def calc_vector(tag_group, vocabulary):
+# 统计词频
+def calc_tag_frequency(tag_list):
+    tag_frequency = {}
+    tag_set = set(tag_list)
+    for tag in tag_set:
+        tag_frequency[tag] = tag_list.count(tag)
+    return tag_frequency
+
+
+# 建立词频向量
+def create_vector(tag_frequency, vocabulary):
     vector = []
+    tag_set = tag_frequency.keys()
     for tag in vocabulary:
-        if tag in tag_group:
-            vector.append(1)
+        if tag in tag_set:
+            vector.append(tag_frequency[tag])
         else:
             vector.append(0)
     return vector
 
 
+# 计算词频向量相似度
 def calc_similar(vector1, vector2, tag_count):
     x = 0.0 # 分子
     y1 = 0.0 # 分母1
@@ -36,11 +49,11 @@ def calc_similar(vector1, vector2, tag_count):
     return x / sqrt(y1 * y2)
 
 
-def vsm(tag_group1, tag_group2, debug=False):
-    count = len(tag_group1) + len(tag_group2)
-    vocabulary = create_vocabulary(tag_group1, tag_group2)
-    vector1 = calc_vector(tag_group1, vocabulary)
-    vector2 = calc_vector(tag_group2, vocabulary)
+def vsm(tag_list1, tag_list2, debug=False):
+    count = len(tag_list1) + len(tag_list2)
+    vocabulary = create_vocabulary(tag_list1, tag_list2)
+    vector1 = create_vector(calc_tag_frequency(tag_list1), vocabulary)
+    vector2 = create_vector(calc_tag_frequency(tag_list2), vocabulary)
     similar = calc_similar(vector1, vector2, count)
     if debug:
         print 'vocabulary', dumps(vocabulary, ensure_ascii=False)

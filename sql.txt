@@ -1,0 +1,109 @@
+# 查看最有钱的用户
+SELECT uid, count(*) as cnt FROM `novel_fans` GROUP BY uid ORDER BY cnt DESC
+
+# 核对某进程最新进度
+UPDATE `process`
+SET start = (
+SELECT c.nid FROM (
+SELECT nid FROM `novel_info` as a, `process` as b
+WHERE b.pid = 4 and a.nid > b.start and a.nid < b.end
+ORDER BY nid DESC LIMIT 1) c)
+WHERE pid = 4
+
+# 简介标签制作进度差集
+SELECT `nid`, `description` FROM `novel_info` AS a
+LEFT JOIN
+(SELECT DISTINCT `nid` as `nnid` FROM `novel_description_tag`) AS b
+ON a.nid = b.nnid
+WHERE b.nnid IS NULL
+
+# 书架进度差集
+SELECT DISTINCT `uid` FROM `novel_fans` AS a LEFT JOIN (SELECT DISTINCT `uid` as `uuid` FROM `fan_shelf`) AS b ON a.uid = b.uuid WHERE b.uuid IS NULL ORDER BY a.uid
+
+# 相似度进度差集
+SELECT `nid` FROM `novel_info` AS a LEFT JOIN (SELECT DISTINCT `nid1` as `nnid` FROM `similar_base_tag`) AS b ON a.nid = b.nnid WHERE b.nnid IS NULL
+
+# 查看最多的标签
+SELECT tag, count(*) as cnt FROM `novel_description_tag` GROUP BY tag ORDER BY cnt DESC
+
+# 查看标签重复的小说
+SELECT count(nid) as cnt, group_concat(nid) as nids, t.tags FROM (SELECT nid, group_concat(tag) as tags FROM `novel_base_tag` GROUP BY nid) t GROUP BY t.tags
+
+# 查看收藏最多的小说
+SELECT * FROM `novel_info` ORDER BY collect DESC
+SELECT a.nid, b.name, count(*) as cnt FROM `fan_shelf` as a, `novel_info` as b WHERE a.nid = b.nid GROUP BY nid ORDER BY cnt DESC
+
+# 查看小说获取进度
+SELECT SUM(pos - start)/SUM(end - start)*100 FROM `process`
+
+# 查看VSM最匹配的小说
+SELECT a.nid1, b1.name, a.nid2, b2.name, a.word, a.letter, a.total
+FROM `novel_info` as b1
+RIGHT JOIN `similar_base_tags` a ON b1.nid = a.nid1
+LEFT JOIN `novel_info` b2 on b2.nid = a.nid2
+ORDER BY total DESC
+LIMIT 10
+
+SELECT * FROM `novel_base_tag` WHERE nid in (100084396, 100040438)
+
+# 根据类型及相似度插入排序，并查看综合排序最前的小说
+SELECT sort.sort, sort.nid1, novel1.name, sort.nid2, novel2.name
+FROM `novel_info` novel1
+RIGHT JOIN
+    (SELECT vsm.sort + ed.sort as sort, vsm.nid1 as nid1, vsm.nid2 as nid2
+    FROM
+    (SELECT @i:=@i+1 as sort, nid1, nid2 FROM `similar_base_tag`, (SELECT @i:=0) t WHERE `type` = 'vsm' ORDER BY `total` DESC) vsm
+    INNER JOIN
+    (SELECT @i:=@i+1 as sort, nid1, nid2 FROM `similar_base_tag`, (SELECT @i:=0) t WHERE `type` = 'edit_distance' ORDER BY `total` DESC) ed
+    ON vsm.nid1=ed.nid1 and vsm.nid2=ed.nid2
+    ORDER BY sort
+    LIMIT 10) sort
+ ON sort.nid1 = novel1.nid
+ LEFT JOIN `novel_info` novel2 ON sort.nid2 = novel2.nid
+
+# 根据某本小说ID，并查看综合相似度最前的小说
+SELECT sort.sort, novel.nid, novel.name
+FROM novel_info novel
+RIGHT JOIN
+    (SELECT vsm.sort + ed.sort as sort, vsm.nid1 as nid1, vsm.nid2 as nid2
+    FROM
+    (SELECT @i:=@i+1 as sort, nid1, nid2 FROM `similar_base_tag`, (SELECT @i:=0) t WHERE `type` = 'vsm' ORDER BY `total` DESC) vsm
+    INNER JOIN
+    (SELECT @i:=@i+1 as sort, nid1, nid2 FROM `similar_base_tag`, (SELECT @i:=0) t WHERE `type` = 'edit_distance' ORDER BY `total` DESC) ed
+    ON vsm.nid1=ed.nid1 and vsm.nid2=ed.nid2) sort
+ON sort.nid2 = novel.nid
+WHERE sort.nid1 = '100084396'
+
+SELECT sort.sort, novel.nid, novel.name
+FROM novel_info novel
+RIGHT JOIN
+    (SELECT vsm.sort + ed.sort as sort, vsm.nid1 as nid1, vsm.nid2 as nid2
+    FROM
+    (SELECT @i:=@i+1 as sort, nid1, nid2 FROM `similar_description_tag`, (SELECT @i:=0) t WHERE `type` = 'vsm' ORDER BY `total` DESC) vsm
+    INNER JOIN
+    (SELECT @i:=@i+1 as sort, nid1, nid2 FROM `similar_description_tag`, (SELECT @i:=0) t WHERE `type` = 'edit_distance' ORDER BY `total` DESC) ed
+    ON vsm.nid1=ed.nid1 and vsm.nid2=ed.nid2) sort
+ON sort.nid2 = novel.nid
+WHERE sort.nid1 = '100084396'
+
+SELECT sort.sort, sort.bsort, sort.dsort, novel.nid, novel.name, novel.description, sort.base_total, sort.desc_total,novel.click, novel.collect, novel.length
+FROM novel_info novel
+RIGHT JOIN
+    (SELECT truncate((base.sort * 0.3) + (des.sort * 0.7), 2) as sort,base.sort as bsort, des.sort as dsort, base.nid1 as nid1, base.nid2 as nid2, base.total as base_total, des.total as desc_total
+    FROM
+        (SELECT @bi:=@bi+1 as sort, nid1, nid2, total FROM `similar_base_tag`, (SELECT @bi:=0) t WHERE `type` = 'vsm' and nid1 = '100087736' ORDER BY `total` DESC) base
+        INNER JOIN
+        (SELECT @di:=@di+1 as sort, nid1, nid2, total FROM `similar_description_tag`, (SELECT @di:=0) t WHERE `type` = 'vsm' and nid1 = '100087736' ORDER BY `total` DESC) des
+    ON base.nid1 = des.nid1 and base.nid2 = des.nid2) sort
+ON sort.nid2 = novel.nid
+ORDER BY sort.sort
+
+
+# 用于删除无效的标签
+SELECT @i:=@i+1 as idx, `tag` FROM `novel_base_tag`, (SELECT @i:=0) t ORDER BY `tag` ASC
+DELETE FROM `novel_base_tag` WHERE tag = (
+    SELECT w.idx, w.tag FROM (
+        SELECT @i:=@i+1 as idx, tag
+        FROM `novel_base_tag`,(SELECT @i:=0) n
+        ORDER BY `tag` ASC
+    ) w WHERE w.idx between 2 and 11)

@@ -5,6 +5,7 @@
 from json import dumps
 from config import connect_db
 from tools.similar.edit_distance_vsm import edit_distance_vsm
+from tools.similar.vsm import vsm
 from time import time
 
 
@@ -12,16 +13,20 @@ def import_tag_data(cur, table, nids):
     t_nids = []
     word_group = []
     letter_group = []
+    nids = set(nids)  # 去重
     cur.execute("SELECT nid, group_concat(tag) as tags FROM (SELECT * FROM `" + table + "` WHERE nid in (" + ','.join(nids) + ")) t GROUP BY nid")
     ret = cur.fetchall()
     for item in ret:
-        t_nids.append(item[0])
+        t_nids.append(str(item[0]))
         word = item[1].split(',')
         word_group.append(word)
-        letter_group.append(list(set(list(item[1].replace(',', '')))))  # 用set实现去重
+        letter_group.append(list(item[1].replace(',', '')))
     if len(t_nids) < len(nids):
-        lost = list(set(nids).difference(set(t_nids)))
-        print '以下', len(lost), '本小说编号未录入数据库：', lost
+        lost = nids.difference(set(t_nids))
+        print '有', len(lost), '本小说编号未录入数据库，分别是：'
+        for nid in lost:
+            print nid
+        print '----------------------'
     return t_nids, word_group, letter_group
 
 
@@ -43,14 +48,15 @@ def tag_edit_distance_vsm(analysis_nids=[], tag_table='', out_table='', target_n
     else:
         target_nids, target_word_group, target_letter_group = import_tag_data(cur, tag_table, target_nids)
     print '导入数据耗时：', time() - time_start
+    print '开始分析'
     time_start = time()
     for i in range(0, len(target_nids)):
         vals = []
         for j in range(i+1, len(analysis_nids)):
-            letter_similar = edit_distance_vsm(target_letter_group[i], analysis_letter_group[j], debug=debug)
+            letter_similar = vsm(target_letter_group[i], analysis_letter_group[j], debug=debug)
             word_similar = edit_distance_vsm(target_word_group[i], analysis_word_group[j], debug=debug)
             total_similar = (word_similar + letter_similar) / 2
-            vals.append((target_nids[i], analysis_nids[j], 'edit_distance_vsm', word_similar, letter_similar, total_similar))
+            vals.append((target_nids[i], analysis_nids[j], 'ed_vsm', word_similar, letter_similar, total_similar))
             if debug:
                 print 'target', dumps(target_word_group[i],ensure_ascii=False)
                 print 'analysis', dumps(analysis_word_group[j],ensure_ascii=False)
@@ -59,6 +65,7 @@ def tag_edit_distance_vsm(analysis_nids=[], tag_table='', out_table='', target_n
                 print 'total_similar:', total_similar
                 print '-----'
         save_similar(con, cur, out_table, vals, save_limit)
+        print target_nids[i], '分析完成'
     print '分析结束，耗时：', time() - time_start
     cur.close()
     con.close()
@@ -93,5 +100,5 @@ if __name__ == '__main__':
                    '100042006']
 
     debug = False
-    tag_edit_distance_vsm(analysis_nids, target_nids=target_nids, tag_table='novel_base_tag', out_table='similar_base_tag', debug=debug)
-    tag_edit_distance_vsm(analysis_nids, target_nids=target_nids, tag_table='novel_description_tag', out_table='similar_description_tag', debug=debug)
+    tag_edit_distance_vsm(analysis_nids, target_nids=target_nids, tag_table='novel_base_tag', out_table='similar_base_tag_ed_vsm', debug=debug)
+    tag_edit_distance_vsm(analysis_nids, target_nids=target_nids, tag_table='novel_description_tag', out_table='similar_description_tag_ed_vsm', debug=debug)

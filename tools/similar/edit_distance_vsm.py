@@ -2,23 +2,23 @@
 ################
 # VSM结合EditDistance模型计算标签相似度
 ###############
-from vsm import create_vocabulary, calc_similar
+from vsm import create_vocabulary, calc_similar, calc_tag_frequency
 from edit_distance import edit_distance
 from json import dumps
 
 
 def calc_edit_distance_vector(tag_group, vocabulary, debug=False):
     vector = []
-    for tag1 in vocabulary:
-        if len(tag1) == 1:
-            vector.append(1 if tag1 in tag_group else 0)
+    for tag in vocabulary:
+        if len(tag) == 1:  # letter 采用词频统计
+            vector.append(tag_group.count(tag))
         else:
             similar = []
-            for tag2 in tag_group:
-                similar.append(edit_distance(tag1, tag2, debug))
+            for _tag in tag_group:
+                similar.append(edit_distance(tag, _tag, debug))
             vector.append(max(similar))
             if debug:
-                print 'calc_edit_distance_vector', tag1, dumps(vocabulary, ensure_ascii=False), similar
+                print 'calc_edit_distance_vector', tag, dumps(vocabulary, ensure_ascii=False), similar
     return vector
 
 

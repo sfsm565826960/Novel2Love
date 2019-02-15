@@ -26,7 +26,11 @@ def tag_edit_distance(analysis_nids=[], tag_table='novel_base_tag', out_table='s
         letter_group.append(item[1].replace(',', ''))
         word_group.append(item[1].split(','))
     if len(nids) < len(analysis_nids):
-        print '以下小说编号未录入数据库：', set(analysis_nids).difference(set(nids))
+        lost = set(analysis_nids).difference(set(nids))
+        print '有', len(lost), '本小说编号未录入数据库，分别是：'
+        for nid in lost:
+            print nid
+        print '----------------------'
     print '导入数据耗时：', time()-tstart
     tstart = time()
     for i in range(0, len(letter_group)):

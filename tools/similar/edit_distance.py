@@ -10,6 +10,8 @@ def edit_distance(vtag, htag, debug=False):
     htag = list(htag)
     vlen = len(vtag) + 1
     hlen = len(htag) + 1
+    if vlen == 1 or hlen == 1:  # 若其中一个标签为空，则直接返回相似度为0
+        return 0
     dic = [[i for i in range(hlen)]]
     for v in range(1, vlen):
         dic.append([0] * hlen)

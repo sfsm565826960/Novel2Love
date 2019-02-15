@@ -12,15 +12,19 @@ def import_tag_data(cur, table, nids):
     t_nids = []
     word_group = []
     letter_group = []
+    nids = list(set(nids))  # nids去重
     cur.execute("SELECT nid, group_concat(tag) as tags FROM (SELECT * FROM `" + table + "` WHERE nid in (" + ','.join(nids) + ")) t GROUP BY nid")
     ret = cur.fetchall()
     for item in ret:
-        t_nids.append(item[0])
+        t_nids.append(str(item[0]))
         word_group.append(item[1].split(','))
         letter_group.append(list(item[1].replace(',', '')))
     if len(t_nids) < len(nids):
-        lost = list(set(nids).difference(set(t_nids)))
-        print '以下', len(lost), '本小说编号未录入数据库：', lost
+        lost = nids.difference(set(t_nids))
+        print '有', len(lost), '本小说编号未录入数据库，分别是：'
+        for nid in lost:
+            print nid
+        print '----------------------'
     return t_nids, word_group, letter_group
 
 

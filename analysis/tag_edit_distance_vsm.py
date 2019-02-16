@@ -7,7 +7,6 @@ from config import connect_db
 from tools.similar.edit_distance_vsm import edit_distance_vsm
 from tools.similar.vsm import vsm
 from time import time
-from cProfile import run
 
 
 def import_tag_data(cur, table, nids):
@@ -82,27 +81,26 @@ if __name__ == '__main__':
     #                       out_table='similar_description_tag', debug=debug)
     # exit(0)
 
-    def main():
-        con = connect_db()
-        cur = con.cursor()
-        # cur.execute("SELECT nid FROM `fan_shelf` ORDER BY collect DESC Limit 5")
-        # cur.execute("SELECT DISTINCT `nid` FROM `novel_info`")
-        cur.execute("SELECT `nid` FROM `novel_info` AS a LEFT JOIN (SELECT DISTINCT `nid1` as `nnid` FROM `similar_base_tag` WHERE `type` = 'edit_distance_vsm') AS b ON a.nid = b.nnid WHERE b.nnid IS NULL")
-        ret = cur.fetchall()
-        analysis_nids = [str(nid[0]) for nid in ret]
-        cur.close()
-        con.close()
+    
+    con = connect_db()
+    cur = con.cursor()
+    # cur.execute("SELECT nid FROM `fan_shelf` ORDER BY collect DESC Limit 5")
+    # cur.execute("SELECT DISTINCT `nid` FROM `novel_info`")
+    cur.execute("SELECT `nid` FROM `novel_info` AS a LEFT JOIN (SELECT DISTINCT `nid1` as `nnid` FROM `similar_base_tag` WHERE `type` = 'edit_distance_vsm') AS b ON a.nid = b.nnid WHERE b.nnid IS NULL")
+    ret = cur.fetchall()
+    analysis_nids = [str(nid[0]) for nid in ret]
+    cur.close()
+    con.close()
 
-        target_nids = ['100089917', '100055607', '100089784', '100060280',
-                       '100087736', '100077651', '100025807', '100084396',
-                       '100000514', '100079016', '100072902', '100070345',
-                       '100003883', '100057499', '100028599', '100000748',
-                       '100061867', '100061338', '100056917', '100011818',
-                       '100049348', '100056938', '100035330', '100045203',
-                       '100042006']
+    target_nids = ['100089917', '100055607', '100089784', '100060280',
+                    '100087736', '100077651', '100025807', '100084396',
+                    '100000514', '100079016', '100072902', '100070345',
+                    '100003883', '100057499', '100028599', '100000748',
+                    '100061867', '100061338', '100056917', '100011818',
+                    '100049348', '100056938', '100035330', '100045203',
+                    '100042006']
 
-        debug = False
-        tag_edit_distance_vsm(analysis_nids, target_nids=target_nids, tag_table='novel_base_tag', out_table='similar_base_tag_ed_vsm', debug=debug)
-        tag_edit_distance_vsm(analysis_nids, target_nids=target_nids, tag_table='novel_description_tag', out_table='similar_description_tag_ed_vsm', debug=debug)
+    debug = False
+    tag_edit_distance_vsm(analysis_nids, target_nids=target_nids, tag_table='novel_base_tag', out_table='similar_base_tag_ed_vsm', debug=debug)
+    tag_edit_distance_vsm(analysis_nids, target_nids=target_nids, tag_table='novel_description_tag', out_table='similar_description_tag_ed_vsm', debug=debug)
 
-    run("main()", "tag_edit_distance_vsm.prof")

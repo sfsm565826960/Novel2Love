@@ -2,12 +2,13 @@
 ############
 # 抓取所有有效的小说
 ############
-import urllib
 import thread
 from pyquery import PyQuery as pq
 from config import connect_db
 from time import sleep
 from random import randint
+from tools.proxy.index import urlopen
+from tools.proxy.baidu_fanyi import proxy_baidu_fanyi as proxy
 
 
 def str2int(str):
@@ -18,34 +19,40 @@ def str2int(str):
         return int(str)
 
 
-def save(pid, nid, name, aid, description, click, collect, length, tags, uids):
+def save(pid, nid, name, aid, description, click, collect, length, tags, uids, con=None, cur=None):
     try:
-        con = connect_db()
-        cursor = con.cursor()
-        cursor.execute("INSERT INTO novel_info (`nid`,`name`,`aid`,`description`,`click`,`collect`,`length`) VALUES (%s, %s, %s, %s, %s, %s, %s);", (nid, name, aid, description, click, collect, length))
+        if cur is None or con is None:
+            _con = connect_db()
+            _cur = con.cursor()
+        else:
+            _cur = cur
+            _con = con
+        _cur.execute("INSERT INTO novel_info (`nid`,`name`,`aid`,`description`,`click`,`collect`,`length`) VALUES (%s, %s, %s, %s, %s, %s, %s);", (nid, name, aid, description, click, collect, length))
         tval = []
         for tag in tags:
             tval.append((nid, tag))
-        cursor.executemany("INSERT INTO novel_base_tag (`nid`, `tag`) VALUES(%s, %s)", tval)
+        _cur.executemany("INSERT INTO novel_base_tag (`nid`, `tag`) VALUES(%s, %s)", tval)
         uval = []
         for uid in uids:
             uval.append((nid, uid))
-        cursor.executemany("INSERT INTO novel_fans (`nid`,`uid`) VALUES(%s, %s)", uval)
-        con.commit()
-        cursor.close()
-        con.close()
+        _cur.executemany("INSERT INTO novel_fans (`nid`,`uid`) VALUES(%s, %s)", uval)
+        _con.commit()
+        if con is None or cur is None:
+            _cur.close()
+            _con.close()
         print pid, nid, name, 'SAVE'
     except Exception as e:
         print pid, nid, name, 'Fail:' + str(e)
 
 
 def novel(nid, novel_length_limit=100000):
-    url = 'https://www.ciweimao.com/book/'
-    res = urllib.urlopen(url + str(nid))
-    dom = pq(res.read())
+    url_novel = 'https://www.ciweimao.com/book/'
+    url_author = 'https://www.ciweimao.com/book/get_book_fans_list?book_id='
+    res = urlopen(url_novel + str(nid), proxy=proxy)
+    dom = pq(res)
     title = dom('head>title').text()
     if title == u'刺猬猫':
-        raise Exception('INVALID_NOVEL_ID')
+        raise Exception('INVALID_NOVEL_ID', {'nid': nid})
     else:
         node = dom('body .book-info .title').contents()
         if node.length < 2:
@@ -56,16 +63,16 @@ def novel(nid, novel_length_limit=100000):
         tags = dom('head>meta[name=keywords]').attr('content').split(',')
         node = dom('body .breadcrumb').children()
         for tag in node[1:]:
-            tags.append(tag.text)
+            tags.append(tag.text.encode('utf-8'))
         description = dom('head>meta[name=description]').attr('content')
         node = dom('body .book-grade').children()
         click = str2int(node[0].text)
         collect = str2int(node[1].text)
         length = str2int(node[2].text)
         if length < novel_length_limit:
-            raise Exception('INVALID_NOVEL_LENGTH', length)
-        res = urllib.urlopen('https://www.ciweimao.com/book/get_book_fans_list?book_id=' + str(nid))
-        dom = pq(res.read())
+            raise Exception('INVALID_NOVEL_LENGTH', {'nid': nid, 'length': length})
+        res = urlopen(url_author + str(nid), proxy=proxy)
+        dom = pq(res)
         node = dom('.nickname')
         uids = []
         for user in node:
@@ -91,7 +98,7 @@ def process(start, end, pid=None):
             con.commit()
     for nid in range(start, end):
         try:
-            save(pid, *novel(nid))
+            save(pid, *novel(nid), con=con, cur=cur)
             if pid is not None:
                 cur.execute("UPDATE `process` SET `pos` = %s WHERE `pid` = %s", (nid, pid))
                 con.commit()

@@ -1,6 +1,12 @@
 # 查看最有钱的用户
 SELECT uid, count(*) as cnt FROM `novel_fans` GROUP BY uid ORDER BY cnt DESC
 
+# 查看缺base_tag的小说
+SELECT DISTINCT `nid` FROM `novel_info` AS a LEFT JOIN (SELECT DISTINCT `nid` as `nnid` FROM `novel_base_tag`) AS b ON a.nid = b.nnid WHERE b.nnid IS NULL
+
+# 查看base和description的差集
+SELECT DISTINCT `nid` FROM `novel_base_tag` AS a LEFT JOIN (SELECT DISTINCT `nid` as `nnid` FROM `novel_description_tag`) AS b ON a.nid = b.nnid WHERE b.nnid IS NULL
+
 # 核对某进程最新进度
 UPDATE `process`
 SET start = (
@@ -101,8 +107,8 @@ ORDER BY sort.sort
 
 # 用于删除无效的标签
 SELECT @i:=@i+1 as idx, `tag` FROM `novel_base_tag`, (SELECT @i:=0) t ORDER BY `tag` ASC
-DELETE FROM `novel_base_tag` WHERE tag = (
-    SELECT w.idx, w.tag FROM (
+DELETE FROM `novel_base_tag` WHERE tag in (
+    SELECT w.tag FROM (
         SELECT @i:=@i+1 as idx, tag
         FROM `novel_base_tag`,(SELECT @i:=0) n
         ORDER BY `tag` ASC

@@ -1,0 +1,6 @@
+.idea
+.vscode
+venv
+*.pyc
+*.sql
+*.prof
